@@ -196,9 +196,9 @@ async function startMockServer() {
     res.json({ errcode: 0, errmsg: 'success' });
   });
 
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`危急值闭环处理系统(Mock模式)启动成功，端口: ${port}`);
-    console.log(`健康检查: http://localhost:${port}/health`);
+    console.log(`健康检查: http://0.0.0.0:${port}/health`);
   });
 }
 
@@ -215,9 +215,9 @@ async function startRealServer() {
     
     app.use('/api', routes.default);
 
-    app.listen(port, () => {
+    app.listen(port, '0.0.0.0', () => {
       console.log(`危急值闭环处理系统启动成功，端口: ${port}`);
-      console.log(`健康检查: http://localhost:${port}/health`);
+      console.log(`健康检查: http://0.0.0.0:${port}/health`);
     });
   } catch (error) {
     console.error('系统启动失败:', error);
