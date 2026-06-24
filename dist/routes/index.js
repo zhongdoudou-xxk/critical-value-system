@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const CriticalValueController_1 = require("../controllers/CriticalValueController");
+const router = (0, express_1.Router)();
+const controller = new CriticalValueController_1.CriticalValueController();
+router.get('/critical-values', controller.getAllCriticalValues.bind(controller));
+router.get('/critical-values/pending', controller.getPendingCriticalValues.bind(controller));
+router.get('/critical-values/:id', controller.getCriticalValueById.bind(controller));
+router.post('/critical-values', controller.createCriticalValue.bind(controller));
+router.post('/critical-values/handle', controller.handleCriticalValue.bind(controller));
+router.post('/critical-values/sync', controller.syncFromMobile.bind(controller));
+router.get('/doctors/department/:departmentId', controller.getDoctorsByDepartment.bind(controller));
+exports.default = router;
