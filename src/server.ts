@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import * as crypto from 'crypto';
 import { CriticalValueStatus, ProcessingAction } from './entities/CriticalValue';
 
 dotenv.config();
@@ -179,20 +180,45 @@ async function startMockServer() {
     }
   });
 
-  app.get('/api/wechat/callback', (req, res) => {
+  const WECHAT_TOKEN = process.env.WECHAT_TOKEN || 'criticalvalue';
+
+function validateSignature(signature: string, timestamp: string, nonce: string): boolean {
+  const arr = [WECHAT_TOKEN, timestamp, nonce].sort();
+  const str = arr.join('');
+  const sha1 = crypto.createHash('sha1');
+  const hash = sha1.update(str).digest('hex');
+  return hash === signature;
+}
+
+app.get('/api/wechat/callback', (req, res) => {
     const { signature, timestamp, nonce, echostr } = req.query;
     
     console.log(`[企业微信] 验证回调地址, signature: ${signature}, timestamp: ${timestamp}, nonce: ${nonce}, echostr: ${echostr}`);
     
-    if (echostr) {
+    if (!signature || !timestamp || !nonce || !echostr) {
+      return res.status(400).send('缺少参数');
+    }
+    
+    if (validateSignature(signature as string, timestamp as string, nonce as string)) {
       res.send(echostr);
     } else {
-      res.status(400).send('缺少 echostr 参数');
+      res.status(403).send('签名验证失败');
     }
   });
 
   app.post('/api/wechat/callback', (req, res) => {
+    const { signature, timestamp, nonce } = req.query;
+    
     console.log('[企业微信] 收到消息回调:', JSON.stringify(req.body));
+    
+    if (!signature || !timestamp || !nonce) {
+      return res.status(400).send('缺少参数');
+    }
+    
+    if (!validateSignature(signature as string, timestamp as string, nonce as string)) {
+      return res.status(403).send('签名验证失败');
+    }
+    
     res.json({ errcode: 0, errmsg: 'success' });
   });
 

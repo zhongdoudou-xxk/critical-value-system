@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const crypto = __importStar(require("crypto"));
 const CriticalValue_1 = require("./entities/CriticalValue");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -195,23 +196,41 @@ async function startMockServer() {
             res.status(500).json({ error: '发送消息失败', details: errorMessage });
         }
     });
+    const WECHAT_TOKEN = process.env.WECHAT_TOKEN || 'criticalvalue';
+    function validateSignature(signature, timestamp, nonce) {
+        const arr = [WECHAT_TOKEN, timestamp, nonce].sort();
+        const str = arr.join('');
+        const sha1 = crypto.createHash('sha1');
+        const hash = sha1.update(str).digest('hex');
+        return hash === signature;
+    }
     app.get('/api/wechat/callback', (req, res) => {
         const { signature, timestamp, nonce, echostr } = req.query;
         console.log(`[企业微信] 验证回调地址, signature: ${signature}, timestamp: ${timestamp}, nonce: ${nonce}, echostr: ${echostr}`);
-        if (echostr) {
+        if (!signature || !timestamp || !nonce || !echostr) {
+            return res.status(400).send('缺少参数');
+        }
+        if (validateSignature(signature, timestamp, nonce)) {
             res.send(echostr);
         }
         else {
-            res.status(400).send('缺少 echostr 参数');
+            res.status(403).send('签名验证失败');
         }
     });
     app.post('/api/wechat/callback', (req, res) => {
+        const { signature, timestamp, nonce } = req.query;
         console.log('[企业微信] 收到消息回调:', JSON.stringify(req.body));
+        if (!signature || !timestamp || !nonce) {
+            return res.status(400).send('缺少参数');
+        }
+        if (!validateSignature(signature, timestamp, nonce)) {
+            return res.status(403).send('签名验证失败');
+        }
         res.json({ errcode: 0, errmsg: 'success' });
     });
-    app.listen(port, () => {
+    app.listen(port, '0.0.0.0', () => {
         console.log(`危急值闭环处理系统(Mock模式)启动成功，端口: ${port}`);
-        console.log(`健康检查: http://localhost:${port}/health`);
+        console.log(`健康检查: http://0.0.0.0:${port}/health`);
     });
 }
 async function startRealServer() {
@@ -223,9 +242,9 @@ async function startRealServer() {
         const pollingService = new PollingService();
         await pollingService.start();
         app.use('/api', routes.default);
-        app.listen(port, () => {
+        app.listen(port, '0.0.0.0', () => {
             console.log(`危急值闭环处理系统启动成功，端口: ${port}`);
-            console.log(`健康检查: http://localhost:${port}/health`);
+            console.log(`健康检查: http://0.0.0.0:${port}/health`);
         });
     }
     catch (error) {
